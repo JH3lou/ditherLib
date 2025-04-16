@@ -17,3 +17,21 @@
 ### Next Up
 - Add histogram updates and live RGB analysis
 - Implement tone zones and custom blue-noise patterns
+
+## [0.2.0] - 2025-04-15
+### Added
+- README documentation
+- Licence Information
+- .gitignore
+
+### Fixed
+- N.A.
+
+### Updated
+- requirements.txt
+- setup.py
+
+### Next Up
+- Add histogram updates and live RGB analysis
+- Implement tone zones and custom blue-noise patterns
+
