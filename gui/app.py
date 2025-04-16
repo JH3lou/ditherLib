@@ -1,11 +1,12 @@
 import sys
 import os
+import threading
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 import customtkinter as ctk
 from customtkinter import CTkImage
 from tkinter import filedialog
-from PIL import Image, ImageTk
+from PIL import Image
 import numpy as np
 from ditherlib.config import get_ditherer
 
@@ -102,19 +103,16 @@ class DitherApp(ctk.CTk):
         self.loading_label = ctk.CTkLabel(self.loading_overlay, text="Processing...", font=("Arial", 18))
         self.loading_label.place(relx=0.5, rely=0.5, anchor="center")
         self.loading_overlay.grid(row=0, column=0, sticky="nsew")
-        self.loading_overlay.lower()  # Start hidden
+        self.loading_overlay.lower()
 
     def load_image(self):
-        file_path = filedialog.askopenfilename(
-            filetypes=[
-                ("Image files", "*.png *.jpg *.jpeg *.bmp *.tiff *.webp"),
-                ("All files", "*.*"),
-            ]
-        )
+        file_path = filedialog.askopenfilename(filetypes=[
+            ("Image files", "*.png *.jpg *.jpeg *.bmp *.tiff *.webp"),
+            ("All files", "*.*"),
+        ])
         if file_path:
             try:
-                img = Image.open(file_path)
-                img = img.convert("L")
+                img = Image.open(file_path).convert("L")
                 self.image_path = file_path
                 self.original_image_array = np.array(img)
                 self.status_label.configure(text=f"Loaded: {os.path.basename(file_path)}")
@@ -124,10 +122,7 @@ class DitherApp(ctk.CTk):
 
     def save_image(self):
         if self.processed_image_array is not None:
-            file_path = filedialog.asksaveasfilename(
-                defaultextension=".png",
-                filetypes=[("PNG files", "*.png")]
-            )
+            file_path = filedialog.asksaveasfilename(defaultextension=".png", filetypes=[("PNG files", "*.png")])
             if file_path:
                 try:
                     Image.fromarray(self.processed_image_array).save(file_path)
@@ -139,38 +134,54 @@ class DitherApp(ctk.CTk):
         if self.live_preview_var.get():
             self.process_and_preview()
 
-
     def process_and_preview(self):
         if self.original_image_array is None:
             return
 
-        self.loading_overlay.lift()  # Show loading overlay
+        self.loading_overlay.lift()
         self.status_label.configure(text="Processing...")
-        self.update()  # Force redraw before starting work
+        self._disable_controls()
+        self.update()
 
-        # Schedule the heavy lifting after the UI has had time to update
-        self.after(50, self._run_dither_process)
+        thread = threading.Thread(target=self._run_dither_process_thread)
+        thread.start()
 
-    def _run_dither_process(self):
+    def _run_dither_process_thread(self):
         algo = self.algo_var.get()
         try:
-            ditherer = get_ditherer(
-                algo,
-                threshold=self.threshold.get(),
-                serpentine=self.serpentine_var.get()
-            )
+            ditherer = get_ditherer(algo, threshold=self.threshold.get(), serpentine=self.serpentine_var.get())
             img = Image.fromarray(self.original_image_array)
             result_img = ditherer.dither(img)
             self.processed_image_array = np.array(result_img)
-            self.display_image(self.processed_image_array)
-            self.status_label.configure(text=f"Dithered using {algo}")
+            self.after(0, lambda: self._post_process_success(result_img, algo))
         except Exception as e:
-            self.status_label.configure(text=f"Error: {e}")
+            self.after(0, lambda: self.status_label.configure(text=f"Error: {e}"))
         finally:
-            self.loading_overlay.lower()  # Hide overlay no matter what
+            self.after(0, self._finalize_processing)
 
+    def _post_process_success(self, result_img, algo):
+        self.display_image(np.array(result_img))
+        self.status_label.configure(text=f"Dithered using {algo}")
 
+    def _finalize_processing(self):
+        self.loading_overlay.lower()
+        self._enable_controls()
 
+    def _disable_controls(self):
+        for widget in [
+            self.apply_btn, self.load_btn, self.save_btn, self.algo_menu,
+            self.threshold_slider, self.gamma_slider, self.downscale_slider,
+            self.serpentine_switch, self.live_toggle
+        ]:
+            widget.configure(state="disabled")
+
+    def _enable_controls(self):
+        for widget in [
+            self.apply_btn, self.load_btn, self.save_btn, self.algo_menu,
+            self.threshold_slider, self.gamma_slider, self.downscale_slider,
+            self.serpentine_switch, self.live_toggle
+        ]:
+            widget.configure(state="normal")
 
     def display_image(self, img_array):
         try:
@@ -178,11 +189,9 @@ class DitherApp(ctk.CTk):
             img.thumbnail((800, 800))
             ctk_img = CTkImage(light_image=img, size=img.size)
             self.image_label.configure(image=ctk_img, text="")
-            self.image_label.image = ctk_img  # Keep a reference
+            self.image_label.image = ctk_img
         except Exception as e:
             self.status_label.configure(text=f"Display error: {e}")
-
-    
 
 if __name__ == "__main__":
     app = DitherApp()
