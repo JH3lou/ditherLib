@@ -9,11 +9,14 @@ from tkinter import filedialog
 from PIL import Image
 import numpy as np
 from ditherlib.config import get_ditherer
+from gui.widgets.histogram_viewer import HistogramViewer
+
 
 class DitherApp(ctk.CTk):
     DEBOUNCE_DELAY_MS = 250
     def __init__(self):
         super().__init__()
+        self.grid_rowconfigure(1, weight=1)
         self.title("DitherLib GUI")
         self.geometry("1200x900")
         self.grid_columnconfigure(1, weight=1)
@@ -26,6 +29,8 @@ class DitherApp(ctk.CTk):
 
         self._build_sidebar()
         self._build_preview_panel()
+        self._build_histogram_panel()
+
 
     def _build_sidebar(self):
         self.sidebar = ctk.CTkFrame(self, width=300)
@@ -50,6 +55,7 @@ class DitherApp(ctk.CTk):
             command=lambda val: self._maybe_process()
         )
         self.algo_menu.pack(padx=10, pady=5)
+
 
         ctk.CTkLabel(self.sidebar, text="Threshold").pack()
         self.threshold = ctk.IntVar(value=128)
@@ -88,6 +94,15 @@ class DitherApp(ctk.CTk):
         )
         self.live_toggle.pack(pady=(0, 10))
 
+        self.show_histogram_var = ctk.BooleanVar(value=True)
+        self.histogram_toggle = ctk.CTkSwitch(
+            self.sidebar,
+            text="Show Histogram",
+            variable=self.show_histogram_var,
+            command=self._toggle_histogram
+        )
+        self.histogram_toggle.pack(pady=(0, 10))
+
         self.apply_btn = ctk.CTkButton(self.sidebar, text="Apply Dither", command=self.process_and_preview)
         self.apply_btn.pack(pady=5, padx=10)
 
@@ -106,6 +121,24 @@ class DitherApp(ctk.CTk):
         self.loading_label.place(relx=0.5, rely=0.5, anchor="center")
         self.loading_overlay.grid(row=0, column=0, sticky="nsew")
         self.loading_overlay.lower()
+
+    def _build_histogram_panel(self):
+        self.histogram_frame = ctk.CTkFrame(self)
+        self.histogram_frame.grid(row=1, column=0, columnspan=2, sticky="ew", padx=10, pady=(0, 10))
+        self.histogram_frame.grid_columnconfigure(0, weight=1)
+
+        self.histogram_viewer = HistogramViewer(self.histogram_frame)
+        self.histogram_viewer.pack(fill="both", expand=True)
+        if not self.show_histogram_var.get():
+            self.histogram_frame.grid_remove()
+
+
+    def _toggle_histogram(self):
+        if self.show_histogram_var.get():
+            self.histogram_frame.grid()
+        else:
+            self.histogram_frame.grid_remove()
+
 
     def load_image(self):
         file_path = filedialog.askopenfilename(filetypes=[
@@ -171,6 +204,8 @@ class DitherApp(ctk.CTk):
 
     def _post_process_success(self, result_img, algo):
         self.display_image(np.array(result_img))
+        if self.show_histogram_var.get(): ## added to update histogram
+            self.histogram_viewer.update_histogram(np.array(result_img)) ## Avoids unnecessary processing if the histogram isn't visible & Prevents errors if the widget is hidden or unmounted
         self.status_label.configure(text=f"Dithered using {algo}")
 
     def _finalize_processing(self):
@@ -181,7 +216,7 @@ class DitherApp(ctk.CTk):
         for widget in [
             self.apply_btn, self.load_btn, self.save_btn, self.algo_menu,
             self.threshold_slider, self.gamma_slider, self.downscale_slider,
-            self.serpentine_switch, self.live_toggle
+            self.serpentine_switch, self.live_toggle, self.histogram_toggle
         ]:
             widget.configure(state="disabled")
 
@@ -189,7 +224,7 @@ class DitherApp(ctk.CTk):
         for widget in [
             self.apply_btn, self.load_btn, self.save_btn, self.algo_menu,
             self.threshold_slider, self.gamma_slider, self.downscale_slider,
-            self.serpentine_switch, self.live_toggle
+            self.serpentine_switch, self.live_toggle, self.histogram_toggle
         ]:
             widget.configure(state="normal")
 
