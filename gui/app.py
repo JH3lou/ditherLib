@@ -6,7 +6,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 import customtkinter as ctk
 from customtkinter import CTkImage
 from tkinter import filedialog
-from PIL import Image
+from PIL import Image, ImageEnhance
 import numpy as np
 from ditherlib.config import get_ditherer
 from gui.widgets.histogram_viewer import HistogramViewer
@@ -14,6 +14,7 @@ from gui.widgets.histogram_viewer import HistogramViewer
 
 class DitherApp(ctk.CTk):
     DEBOUNCE_DELAY_MS = 250
+
     def __init__(self):
         super().__init__()
         self.grid_rowconfigure(1, weight=1)
@@ -30,7 +31,6 @@ class DitherApp(ctk.CTk):
         self._build_sidebar()
         self._build_preview_panel()
         self._build_histogram_panel()
-
 
     def _build_sidebar(self):
         self.sidebar = ctk.CTkFrame(self, width=300)
@@ -56,7 +56,6 @@ class DitherApp(ctk.CTk):
         )
         self.algo_menu.pack(padx=10, pady=5)
 
-
         ctk.CTkLabel(self.sidebar, text="Threshold").pack()
         self.threshold = ctk.IntVar(value=128)
         self.threshold_slider = ctk.CTkSlider(
@@ -72,6 +71,22 @@ class DitherApp(ctk.CTk):
             command=lambda val: self._maybe_process()
         )
         self.gamma_slider.pack(padx=10, pady=5)
+
+        ctk.CTkLabel(self.sidebar, text="Brightness").pack()
+        self.brightness = ctk.IntVar(value=0)
+        self.brightness_slider = ctk.CTkSlider(
+            self.sidebar, from_=-100, to=100, variable=self.brightness,
+            command=lambda val: self._maybe_process()
+        )
+        self.brightness_slider.pack(padx=10, pady=5)
+
+        ctk.CTkLabel(self.sidebar, text="Contrast").pack()
+        self.contrast = ctk.DoubleVar(value=1.0)
+        self.contrast_slider = ctk.CTkSlider(
+            self.sidebar, from_=0.5, to=2.0, variable=self.contrast,
+            command=lambda val: self._maybe_process()
+        )
+        self.contrast_slider.pack(padx=10, pady=5)
 
         ctk.CTkLabel(self.sidebar, text="Downscale %").pack()
         self.downscale = ctk.IntVar(value=100)
@@ -129,16 +144,15 @@ class DitherApp(ctk.CTk):
 
         self.histogram_viewer = HistogramViewer(self.histogram_frame)
         self.histogram_viewer.pack(fill="both", expand=True)
+
         if not self.show_histogram_var.get():
             self.histogram_frame.grid_remove()
-
 
     def _toggle_histogram(self):
         if self.show_histogram_var.get():
             self.histogram_frame.grid()
         else:
             self.histogram_frame.grid_remove()
-
 
     def load_image(self):
         file_path = filedialog.askopenfilename(filetypes=[
@@ -172,10 +186,20 @@ class DitherApp(ctk.CTk):
         if self._debounce_after_id:
             self.after_cancel(self._debounce_after_id)
 
-        # Debounce delay in milliseconds (adjustable with DEBOUNCE_DELAY_MS)
         self._debounce_after_id = self.after(self.DEBOUNCE_DELAY_MS, self.process_and_preview)
 
+    def _preprocess_image(self):
+        img = Image.fromarray(self.original_image_array)
 
+        if self.brightness.get() != 0:
+            brightness_enhancer = ImageEnhance.Brightness(img)
+            img = brightness_enhancer.enhance(1 + self.brightness.get() / 100)
+
+        if self.contrast.get() != 1.0:
+            contrast_enhancer = ImageEnhance.Contrast(img)
+            img = contrast_enhancer.enhance(self.contrast.get())
+
+        return img
 
     def process_and_preview(self):
         if self.original_image_array is None:
@@ -192,20 +216,20 @@ class DitherApp(ctk.CTk):
     def _run_dither_process_thread(self):
         algo = self.algo_var.get()
         try:
+            pre_img = self._preprocess_image()
             ditherer = get_ditherer(algo, threshold=self.threshold.get(), serpentine=self.serpentine_var.get())
-            img = Image.fromarray(self.original_image_array)
-            result_img = ditherer.dither(img)
+            result_img = ditherer.dither(pre_img)
             self.processed_image_array = np.array(result_img)
-            self.after(0, lambda: self._post_process_success(result_img, algo))
+            self.after(0, lambda: self._post_process_success(np.array(pre_img), np.array(result_img), algo))
         except Exception as e:
             self.after(0, lambda: self.status_label.configure(text=f"Error: {e}"))
         finally:
             self.after(0, self._finalize_processing)
 
-    def _post_process_success(self, result_img, algo):
-        self.display_image(np.array(result_img))
-        if self.show_histogram_var.get(): ## added to update histogram
-            self.histogram_viewer.update_histogram(np.array(result_img)) ## Avoids unnecessary processing if the histogram isn't visible & Prevents errors if the widget is hidden or unmounted
+    def _post_process_success(self, input_array, result_array, algo):
+        self.display_image(result_array)
+        if self.show_histogram_var.get():
+            self.histogram_viewer.update_histogram(input_array)
         self.status_label.configure(text=f"Dithered using {algo}")
 
     def _finalize_processing(self):
@@ -216,6 +240,7 @@ class DitherApp(ctk.CTk):
         for widget in [
             self.apply_btn, self.load_btn, self.save_btn, self.algo_menu,
             self.threshold_slider, self.gamma_slider, self.downscale_slider,
+            self.brightness_slider, self.contrast_slider,
             self.serpentine_switch, self.live_toggle, self.histogram_toggle
         ]:
             widget.configure(state="disabled")
@@ -224,6 +249,7 @@ class DitherApp(ctk.CTk):
         for widget in [
             self.apply_btn, self.load_btn, self.save_btn, self.algo_menu,
             self.threshold_slider, self.gamma_slider, self.downscale_slider,
+            self.brightness_slider, self.contrast_slider,
             self.serpentine_switch, self.live_toggle, self.histogram_toggle
         ]:
             widget.configure(state="normal")
