@@ -27,5 +27,3 @@ dist/
 build/
 *.egg-info/
 
-# macOS system files
-.DS_Store
