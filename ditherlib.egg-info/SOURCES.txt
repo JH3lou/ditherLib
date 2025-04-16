@@ -1,0 +1,9 @@
+setup.py
+ditherlib/__init__.py
+ditherlib.egg-info/PKG-INFO
+ditherlib.egg-info/SOURCES.txt
+ditherlib.egg-info/dependency_links.txt
+ditherlib.egg-info/requires.txt
+ditherlib.egg-info/top_level.txt
+ditherlib/algorithms/__init__.py
+tests/__init__.py
