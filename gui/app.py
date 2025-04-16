@@ -11,6 +11,7 @@ import numpy as np
 from ditherlib.config import get_ditherer
 
 class DitherApp(ctk.CTk):
+    DEBOUNCE_DELAY_MS = 250
     def __init__(self):
         super().__init__()
         self.title("DitherLib GUI")
@@ -21,6 +22,7 @@ class DitherApp(ctk.CTk):
         self.original_image_array = None
         self.processed_image_array = None
         self.live_preview_enabled = True
+        self._debounce_after_id = None
 
         self._build_sidebar()
         self._build_preview_panel()
@@ -131,8 +133,16 @@ class DitherApp(ctk.CTk):
                     self.status_label.configure(text=f"Save failed: {e}")
 
     def _maybe_process(self, *args):
-        if self.live_preview_var.get():
-            self.process_and_preview()
+        if not self.live_preview_var.get():
+            return
+
+        if self._debounce_after_id:
+            self.after_cancel(self._debounce_after_id)
+
+        # Debounce delay in milliseconds (adjustable with DEBOUNCE_DELAY_MS)
+        self._debounce_after_id = self.after(self.DEBOUNCE_DELAY_MS, self.process_and_preview)
+
+
 
     def process_and_preview(self):
         if self.original_image_array is None:
