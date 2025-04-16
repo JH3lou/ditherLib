@@ -1,0 +1,28 @@
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Environment files
+.env
+.venv/
+.conda/
+*.env
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor configs
+.vscode/
+*.code-workspace
+.idea/
+
+# Byte-compiled / backup files
+*.bak
+*.swp
+*.swo
+
+# Distribution
+dist/
+build/
+*.egg-info/

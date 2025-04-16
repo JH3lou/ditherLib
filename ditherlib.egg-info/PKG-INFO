@@ -1,6 +1,36 @@
 Metadata-Version: 2.2
 Name: ditherlib
 Version: 0.1.0
-Requires-Dist: numpy
-Requires-Dist: Pillow
+Summary: A modern Python library and GUI for image dithering algorithms including adaptive and classic diffusion.
+Home-page: https://github.com/JH3lou/ditherLib
+Author: JH3lou
+Project-URL: Bug Tracker, https://github.com/JH3lou/ditherLib/issues
+Project-URL: Documentation, https://github.com/JH3lou/ditherLib#readme
+Classifier: Development Status :: 4 - Beta
+Classifier: Intended Audience :: Developers
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Topic :: Multimedia :: Graphics :: Graphics Conversion
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.8
+Description-Content-Type: text/markdown
+License-File: LICENCE.md
+Requires-Dist: customtkinter==5.2.2
+Requires-Dist: darkdetect==0.8.0
+Requires-Dist: exceptiongroup==1.2.2
+Requires-Dist: iniconfig==2.1.0
+Requires-Dist: numpy==2.2.4
+Requires-Dist: packaging==24.2
+Requires-Dist: pillow==11.1.0
+Requires-Dist: pluggy==1.5.0
+Requires-Dist: pytest==8.3.5
+Requires-Dist: tomli==2.2.1
+Dynamic: author
+Dynamic: classifier
+Dynamic: description-content-type
+Dynamic: home-page
+Dynamic: project-url
 Dynamic: requires-dist
+Dynamic: requires-python
+Dynamic: summary

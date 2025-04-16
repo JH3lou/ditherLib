@@ -1,2 +1,3 @@
 ditherlib
 tests
+gui
