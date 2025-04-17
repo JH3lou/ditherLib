@@ -31,13 +31,12 @@ class DitherApp(ctk.CTk):
         self._debounce_after_id = None
 
         self._build_sidebar()
-        self._build_preview_panel()
-        self._build_histogram_panel()
-        self._build_tone_curve_panel()
+        self._build_main_scroll_area()
 
 
     def _build_sidebar(self):
-        self.sidebar = ctk.CTkFrame(self, width=300)
+        self.sidebar = ctk.CTkFrame(self, width=300) ##Non scrollable sidebar in mainwindow
+        ## self.sidebar = ctk.CTkScrollableFrame(self, width=300) ##Scrollable sidebar in main window
         self.sidebar.grid(row=0, column=0, sticky="ns", padx=10, pady=10)
 
         self.load_btn = ctk.CTkButton(self.sidebar, text="Load Image", command=self.load_image)
@@ -138,9 +137,18 @@ class DitherApp(ctk.CTk):
         self.status_label = ctk.CTkLabel(self.sidebar, text="Status: Idle")
         self.status_label.pack(pady=10)
 
+    def _build_main_scroll_area(self):
+        self.scroll_area = ctk.CTkScrollableFrame(self)
+        self.scroll_area.grid(row=0, column=1, rowspan=3, sticky="nsew", padx=10, pady=10)
+
+        self._build_preview_panel()
+        self._build_histogram_panel()
+        self._build_tone_curve_panel()
+
+    
     def _build_preview_panel(self):
-        self.preview_frame = ctk.CTkFrame(self)
-        self.preview_frame.grid(row=0, column=1, sticky="nsew", padx=10, pady=10)
+        self.preview_frame = ctk.CTkFrame(self.scroll_area)
+        self.preview_frame.pack(fill="both", expand=True, pady=(0, 10))
         self.preview_frame.grid_rowconfigure(0, weight=1)
         self.preview_frame.grid_columnconfigure(0, weight=1)
         self.image_label = ctk.CTkLabel(self.preview_frame, text="No image loaded", fg_color="transparent")
@@ -152,8 +160,8 @@ class DitherApp(ctk.CTk):
         self.loading_overlay.lower()
 
     def _build_histogram_panel(self):
-        self.histogram_frame = ctk.CTkFrame(self)
-        self.histogram_frame.grid(row=1, column=0, columnspan=2, sticky="ew", padx=10, pady=(0, 10))
+        self.histogram_frame = ctk.CTkFrame(self.scroll_area)
+        self.histogram_frame.pack(fill="x", expand=True, pady=(0, 10))
         self.histogram_frame.grid_columnconfigure(0, weight=1)
 
         self.histogram_viewer = HistogramViewer(self.histogram_frame)
@@ -164,25 +172,24 @@ class DitherApp(ctk.CTk):
 
     def _toggle_histogram(self):
         if self.show_histogram_var.get():
-            self.histogram_frame.grid()
+            self.histogram_frame.pack(fill="x", expand=True, pady=(0, 10))
         else:
-            self.histogram_frame.grid_remove()
+            self.histogram_frame.pack_forget()
 
     def _build_tone_curve_panel(self):
-        self.tone_curve_frame = ctk.CTkFrame(self)
-        self.tone_curve_frame.grid(row=2, column=0, columnspan=2, sticky="ew", padx=10, pady=(0, 10))
+        self.tone_curve_frame = ctk.CTkFrame(self.scroll_area)
+        self.tone_curve_frame.pack(fill="x", expand=True, pady=(0, 10))
         self.tone_curve_frame.grid_columnconfigure(0, weight=1)
 
         self.tone_curve_editor = ToneCurveEditor(self.tone_curve_frame)
         self.tone_curve_editor.pack(fill="both", expand=True)
+        self.tone_curve_editor.on_curve_changed = self._maybe_process
 
     def _toggle_tone_curve(self):
         if self.show_tone_curve_var.get():
-            self.tone_curve_frame.grid()
+            self.tone_curve_frame.pack(fill="x", expand=True, pady=(0, 10))
         else:
-            self.tone_curve_frame.grid_remove()
-
-
+            self.tone_curve_frame.pack_forget()
 
     def load_image(self):
         file_path = filedialog.askopenfilename(filetypes=[
