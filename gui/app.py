@@ -10,6 +10,8 @@ from PIL import Image, ImageEnhance
 import numpy as np
 from ditherlib.config import get_ditherer
 from gui.widgets.histogram_viewer import HistogramViewer
+from gui.widgets.tone_curve_editor import ToneCurveEditor
+
 
 
 class DitherApp(ctk.CTk):
@@ -31,6 +33,8 @@ class DitherApp(ctk.CTk):
         self._build_sidebar()
         self._build_preview_panel()
         self._build_histogram_panel()
+        self._build_tone_curve_panel()
+
 
     def _build_sidebar(self):
         self.sidebar = ctk.CTkFrame(self, width=300)
@@ -78,7 +82,7 @@ class DitherApp(ctk.CTk):
             self.sidebar, from_=-100, to=100, variable=self.brightness,
             command=lambda val: self._maybe_process()
         )
-        self.brightness_slider.pack(padx=10, pady=5)
+        self.brightness_slider.pack(padx=10, pady=5) ## Brightness Slider
 
         ctk.CTkLabel(self.sidebar, text="Contrast").pack()
         self.contrast = ctk.DoubleVar(value=1.0)
@@ -86,7 +90,7 @@ class DitherApp(ctk.CTk):
             self.sidebar, from_=0.5, to=2.0, variable=self.contrast,
             command=lambda val: self._maybe_process()
         )
-        self.contrast_slider.pack(padx=10, pady=5)
+        self.contrast_slider.pack(padx=10, pady=5) ## Contrast Slider
 
         ctk.CTkLabel(self.sidebar, text="Downscale %").pack()
         self.downscale = ctk.IntVar(value=100)
@@ -94,14 +98,14 @@ class DitherApp(ctk.CTk):
             self.sidebar, from_=25, to=100, variable=self.downscale,
             command=lambda val: self._maybe_process()
         )
-        self.downscale_slider.pack(padx=10, pady=5)
+        self.downscale_slider.pack(padx=10, pady=5) ## Downscale Slider
 
         self.serpentine_var = ctk.BooleanVar(value=True)
         self.serpentine_switch = ctk.CTkSwitch(
             self.sidebar, text="Serpentine Scan", variable=self.serpentine_var,
             command=self._maybe_process
         )
-        self.serpentine_switch.pack(pady=5)
+        self.serpentine_switch.pack(pady=5) ## Serpentine Toggle Switch
 
         self.live_preview_var = ctk.BooleanVar(value=True)
         self.live_toggle = ctk.CTkSwitch(
@@ -109,7 +113,7 @@ class DitherApp(ctk.CTk):
         )
         self.live_toggle.pack(pady=(0, 10))
 
-        self.show_histogram_var = ctk.BooleanVar(value=True)
+        self.show_histogram_var = ctk.BooleanVar(value=True) ## Histogram Toggle
         self.histogram_toggle = ctk.CTkSwitch(
             self.sidebar,
             text="Show Histogram",
@@ -117,6 +121,16 @@ class DitherApp(ctk.CTk):
             command=self._toggle_histogram
         )
         self.histogram_toggle.pack(pady=(0, 10))
+
+        self.show_tone_curve_var = ctk.BooleanVar(value=True) ## Tone Curve Toggle
+        self.tone_curve_toggle = ctk.CTkSwitch(
+            self.sidebar,
+            text="Show Tone Curve",
+            variable=self.show_tone_curve_var,
+            command=self._toggle_tone_curve
+        )
+        self.tone_curve_toggle.pack(pady=(0, 10))
+
 
         self.apply_btn = ctk.CTkButton(self.sidebar, text="Apply Dither", command=self.process_and_preview)
         self.apply_btn.pack(pady=5, padx=10)
@@ -153,6 +167,22 @@ class DitherApp(ctk.CTk):
             self.histogram_frame.grid()
         else:
             self.histogram_frame.grid_remove()
+
+    def _build_tone_curve_panel(self):
+        self.tone_curve_frame = ctk.CTkFrame(self)
+        self.tone_curve_frame.grid(row=2, column=0, columnspan=2, sticky="ew", padx=10, pady=(0, 10))
+        self.tone_curve_frame.grid_columnconfigure(0, weight=1)
+
+        self.tone_curve_editor = ToneCurveEditor(self.tone_curve_frame)
+        self.tone_curve_editor.pack(fill="both", expand=True)
+
+    def _toggle_tone_curve(self):
+        if self.show_tone_curve_var.get():
+            self.tone_curve_frame.grid()
+        else:
+            self.tone_curve_frame.grid_remove()
+
+
 
     def load_image(self):
         file_path = filedialog.askopenfilename(filetypes=[
@@ -199,6 +229,11 @@ class DitherApp(ctk.CTk):
             contrast_enhancer = ImageEnhance.Contrast(img)
             img = contrast_enhancer.enhance(self.contrast.get())
 
+        if hasattr(self, "tone_curve_editor"):
+            lut = self.tone_curve_editor.get_lut()
+            if lut is not None and isinstance(lut, np.ndarray) and lut.size == 256:
+                img = img.point(lut.tolist())  # Apply LUT as tone curve
+
         return img
 
     def process_and_preview(self):
@@ -230,6 +265,9 @@ class DitherApp(ctk.CTk):
         self.display_image(result_array)
         if self.show_histogram_var.get():
             self.histogram_viewer.update_histogram(input_array)
+        if self.show_tone_curve_var.get(): # Optionally refresh/redraw tone curve background to reflect histogram
+            self.tone_curve_editor.update_with_histogram(input_array)
+
         self.status_label.configure(text=f"Dithered using {algo}")
 
     def _finalize_processing(self):
@@ -241,7 +279,7 @@ class DitherApp(ctk.CTk):
             self.apply_btn, self.load_btn, self.save_btn, self.algo_menu,
             self.threshold_slider, self.gamma_slider, self.downscale_slider,
             self.brightness_slider, self.contrast_slider,
-            self.serpentine_switch, self.live_toggle, self.histogram_toggle
+            self.serpentine_switch, self.live_toggle, self.histogram_toggle, self.tone_curve_toggle
         ]:
             widget.configure(state="disabled")
 
@@ -250,7 +288,7 @@ class DitherApp(ctk.CTk):
             self.apply_btn, self.load_btn, self.save_btn, self.algo_menu,
             self.threshold_slider, self.gamma_slider, self.downscale_slider,
             self.brightness_slider, self.contrast_slider,
-            self.serpentine_switch, self.live_toggle, self.histogram_toggle
+            self.serpentine_switch, self.live_toggle, self.histogram_toggle, self.tone_curve_toggle
         ]:
             widget.configure(state="normal")
 
